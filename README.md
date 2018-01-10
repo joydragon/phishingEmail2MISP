@@ -1,6 +1,6 @@
 # phishingEmail2MISP
 
-This script is meant to parse an email file (just .txt for now) that's considered *malicious email*, and generate an event on a MISP instance about it.
+This script is meant to parse an email file (just .txt for now) that's considered *malicious email*, and generate an event on a MISP (http://www.misp-project.org/) instance about it.
 
 
 ## Requirements
