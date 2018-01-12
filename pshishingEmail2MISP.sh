@@ -12,8 +12,8 @@ FOLDER_ATTACHMENTS="./"
 # 2) SMTP standard
 # 3) SMTP email id
 # 4) email date
-RE1="Received:\s+by\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(\s+with\s+[A-Z]+)?(\s+id\s+[0-9A-Za-z.]+)?;\s+([^() ][^()]+[^() ])\s+\([^()]+\)"
-# Regular Expression for the "Received: from" email Header
+RE1='Received:\s+by\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(\s+with\s+[A-Z]+)?(\s+id\s+[0-9A-Za-z.]+)?;\s+([^() ][^()]+[^() ])\s+\([^()]+\)'
+# OLD Regular Expression for the "Received: from" email Header
 # 1) SMTP sender server name/IP
 # 2) SMTP sender server name
 # 3) SMTP sender server IP
@@ -24,7 +24,15 @@ RE1="Received:\s+by\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(\s+with\s+
 # 8) SMTP email address
 # 9) SMTP other
 # 10) email date
-RE2="Received:\s+from\s+([^ \/$.?#].[^ ]*|\[?[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\]?)\s+\(([^ \/$.?#].[^ ]*)\s+\[?([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\]?\)\s+by\s+([^ \/$.?#].[^ ]*)(\s+\([^)(]+\))?(\s+with\s+[A-Z]+)?(\s+id\s+[0-9A-Za-z.]+)?(\s+for\s+<[^ \/$.?#].[^ ]*>)?\s+([^;]+);\s+([^()][^()]+[^()])\s+\([^()]+\)"
+#OLD_RE2='Received:\s+from\s+([^ \/$.?#].[^ ]*|\[?[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\]?)\s+\(([^ \/$.?#].[^ ]*)\s+\[?([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\]?\)\s+by\s+([^ \/$.?#].[^ ]*)(\s+\([^)(]+\))?(\s+with\s+[a-zA-Z]+)?(\s+id\s+[0-9A-Za-z.]+)?(\s+for\s+<[^ \/$.?#].[^ ]*>)?\s+([^;]+);\s+([^()][^()]+[^()])\s+\([^()]+\)'
+
+# Regular Expression for the "Received: from" email Header
+# 1) SMTP sender server name/IP
+# 2) SMTP sender server name
+# 3) SMTP sender server IP
+# 4) Other SMTP stuff, depends on the SMTP server
+# 5) SMTP processing date
+RE2='Received:\s+from\s+([^(]+)\s+\(([^0-9)[ \t][^\s)[]+)?\s*\[?([^])[]+)\]?\)([^;]+)?;\s+([^()][^()]+[^()])\s*(\([^()]+\))?'
 
 # Regular Expressin for the "To", "CC" and similar email Headers
 RE_EMAIL_PARSE="([^<]+)\s<([^>]+)"
@@ -135,7 +143,7 @@ function sortReceivedFromHeader {
 			mydate=$(date --date="${BASH_REMATCH[4]}" -u)
 		elif [[ "$line" =~ $RE2 ]]; then
 			sender=$(echo ${BASH_REMATCH[1]} | sed -e "s/[][]//g" )
-			mydate=$(date --date="${BASH_REMATCH[10]}" -u)
+			mydate=$(date --date="${BASH_REMATCH[5]}" -u)
 
 			ATTR=$(assignReceivedFrom BASH_REMATCH[@])
 			echo "$ATTR"
@@ -280,7 +288,7 @@ if [[ "$event_id" != "null" ]];then
 	tempfile=$(mktemp)
 	echo -e "$ATTACHMENTS" > "$tempfile"
 	CURL=$(curl -v -k "${BASE_URL}events/upload_sample/$event_id" -H "$AUTHORIZATION_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" --data "@$tempfile" -XPOST)
-
+	rm -f $tempfile
 else
 	echo "Event ID: Not found"
 	echo "$CURL"
