@@ -288,7 +288,7 @@ if [[ "$event_id" != "null" ]];then
 	# Workaround because files can be too big
 	tempfile=$(mktemp)
 	echo -e "$ATTACHMENTS" > "$tempfile"
-	CURL=$(curl -v -k "${BASE_URL}events/upload_sample/$event_id" -H "$AUTHORIZATION_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" --data "@$tempfile" -XPOST)
+	CURL=$(curl -s -k "${BASE_URL}events/upload_sample/$event_id" -H "$AUTHORIZATION_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" --data "@$tempfile" -XPOST)
 	rm -f $tempfile
 else
 	echo "Event ID: Not found"
