@@ -247,7 +247,8 @@ elif [ ! -f "$1" ];then
 fi
 
 # Cleaning the file so we can parse it better
-WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -e ':a;N;$!ba;s/\n / /g' | sed -re 's/\x0d//g')
+# Patched the sed regex using http://www.grymoire.com/Unix/Sed.html
+WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -e '/^$/ba;$ba;N;:a;s/\n / /g;' | sed -re 's/\x0d//g')
 
 # Extract the Headers
 EH=$(extractHeaders "$WHOLE_FILE")
