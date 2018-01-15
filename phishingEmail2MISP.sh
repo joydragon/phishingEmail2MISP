@@ -248,7 +248,7 @@ fi
 
 # Cleaning the file so we can parse it better
 # Patched the sed regex using http://www.grymoire.com/Unix/Sed.html
-WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -e '/^$/ba;$ba;N;:a;s/\n / /g;' | sed -re 's/\x0d//g')
+WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e '/^$/ba;$ba;N;:a;s/\n / /g;')
 
 # Extract the Headers
 EH=$(extractHeaders "$WHOLE_FILE")
