@@ -6,6 +6,7 @@ This script is meant to parse an email file (just .txt for now) that's considere
 ## Requirements
 
 Needs __jq__ (https://stedolan.github.io/jq/) as a JSON parser.
+Needs __pup__ (https://github.com/EricChiang/pup/releases/) as a HTML parser.
 
 
 ## Preparation
@@ -14,10 +15,10 @@ The script is meant to fail at first because it's missing some configuration.
 
 * **Line 7**: Flag to set if the attachments will be save to the file system
 * **Line 8**: Folder to save the attachments to (defaults to current folder)
-* **Line 269**: URL or IP for the target MISP instance
-* **Line 270**: Authorization Key for the MISP account (https://www.circl.lu/doc/misp/automation/#automation-key)
+* **Line 347**: URL or IP for the target MISP instance
+* **Line 348**: Authorization Key for the MISP account (https://www.circl.lu/doc/misp/automation/#automation-key)
 
-After this setup, you can now run the actual script
+After this setup, you can delete **Lines 340-344**, now run the actual script.
 
 
 ## Usage
