@@ -1,7 +1,8 @@
 #!/bin/bash
 # https://forums.contribs.org/index.php?topic=49765.0
 
-hash jq 2>/dev/null || { echo >&2 "Error: This script uses the 'jq' program, it needs to be installed for this to work."; exit 1; }
+hash jq 2>/dev/null || { echo >&2 "Error: This script uses the 'jq' program, it needs to be installed for this to work."; echo >&2 "You can find it here: https://github.com/stedolan/jq"; exit 1; }
+hash pup 2>/dev/null || { echo >&2 "Error: This script uses the 'pup' program, it needs to be installed for this to work."; echo >&2 "You can find it here: https://github.com/EricChiang/pup/releases/"; exit 1; }
 
 # FLag to Save the attachments and the texz on a folder named after the email subject
 SAVE_ATTACHMENTS=1
@@ -13,6 +14,7 @@ FOLDER_ATTACHMENTS="./"
 # 3) SMTP email id
 # 4) email date
 RE1='Received:\s+by\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(\s+with\s+[A-Z]+)?(\s+id\s+[0-9A-Za-z.]+)?;\s+([^() ][^()]+[^() ])\s+\([^()]+\)'
+
 # OLD Regular Expression for the "Received: from" email Header
 # 1) SMTP sender server name/IP
 # 2) SMTP sender server name
@@ -36,6 +38,11 @@ RE2='Received:\s+from\s+([^(]+)\s+\(([^0-9)[ \t][^\s)[]+)?\s*\[?([^])[]+)\]?\)([
 
 # Regular Expressin for the "To", "CC" and similar email Headers
 RE_EMAIL_PARSE="([^<]+)\s<([^>]+)"
+
+# URL Regex based on https://mathiasbynens.be/demo/url-regex
+RE_URL='(https?|ftp):\/\/([^[:space:]\/$.?#].[^[:space:])\\>"'"'"']*)'
+
+WHITELIST='(www.pdf-tools.com|.google.com|.google.cl|.microsoft.com|.yahoo.com)'
 
 function extractHeaders {
 	local text="$1"
@@ -104,7 +111,7 @@ function assignReceivedFrom {
 	local attr=""
 
 	for i in "${!line[@]}"; do
-		if [ -n "${line[$i]}" ] && [[ "unknown" != "${line[$i]}" ]] && [[ "127.0.0.1" != "${line[$i]}" ]] ; then
+		if [ $i -gt 0 ] && [ -n "${line[$i]}" ] && [[ ! "${line[$i]}" =~ "unknown" ]] && [[ "127.0.0.1" != "${line[$i]}" ]] ; then
 			case "$i" in
 				1) 
 					local aux=$(echo ${line[$i]} | sed -e "s/[][]//g" -e "s/\.$//")
@@ -131,7 +138,7 @@ function assignReceivedFrom {
 }
 
 function sortReceivedFromHeader {
-	local EH=$1
+	local EH="$1"
 
 	local res=$(echo -e "$EH" | grep -e "Received:")
 	local ATTR=""
@@ -183,6 +190,7 @@ function separateByBoundary {
         local i=1
 
 	local res=""
+	local strings=""
 
         while [ -n "$text" ]
         do
@@ -203,7 +211,17 @@ function separateByBoundary {
 
 				if [ -n "$(echo -e "$head" | grep -e 'Content-Transfer-Encoding: base64')" ];then
                                 	b64=$(echo -e "$body" | paste -sd "")
+					text=$(echo -e "$b64" | base64 -d -)
+					strings=$(checkURLOnFile "$text" 2)
 				else
+					if [[ "$ct" =~ "Content-Type: text/plain" ]];then
+						strings=${strings}$(checkURLOnFile "$body" 0)
+					elif [[ "$ct" =~ "Content-Type: text/html" ]];then
+						strings=${strings}$(checkURLOnFile "$body" 1)
+					else
+						strings=${strings}$(checkURLOnFile "$body" 2)
+					fi
+
                                 	b64=$(echo -e "$body" | base64 -w 0 -)
 				fi
 				res="${res}"'{"filename": "'$filename'", "data": "'$b64'"}'
@@ -218,12 +236,15 @@ function separateByBoundary {
                 text=$(echo -e "$text" | sed -e '0,/'${boundary}'/d')
         done
 
-	echo "$res" | sed -e "s/}{/},{/g"
+	if [ -n "$strings" ];then
+		echo "${strings}" | sed -e "s/}{/},{/g"
+	fi
+	echo "${res}" | sed -e "s/}{/},{/g"
 }
 
 function saveAttachment {
-	local filename=$1
-	local content64=$2
+	local filename="$1"
+	local content64="$2"
 
 	local dirname="[$(date +%F)] - $(getEmailSubject)/"
 	local fulldir="${FOLDER_ATTACHMENTS}${dirname}"
@@ -235,11 +256,49 @@ function saveAttachment {
 	echo -e "$content64" | base64 -d - > "${fulldir}${filename}"
 }
 
+function checkWhitelist {
+        URL="$1"
+        if [[ "$URL" =~ $WHITELIST ]]; then
+                echo "0"
+        else
+                echo "1"
+        fi
+}
+
+function checkURLOnFile {
+	local FILE="$1"
+	# 0 plaintext
+	# 1 html
+	# 2 binary
+	local TYPE="$2"
+	if [ -z $TYPE ]; then
+	        TYPE=2
+	fi
+	
+	if [ $TYPE -eq 0 ]; then
+	        text=$(echo -e "$FILE")
+	elif [ $TYPE -eq 1 ]; then
+	        text=$(echo -e "$FILE" | pup)
+	elif [ $TYPE -eq 2 ]; then
+	        text=$(echo -e "$FILE" | strings)
+	fi
+	
+	while read -r line
+	do
+	        if [[ "$line" =~ $RE_URL ]]; then
+	                res=$( checkWhitelist "${BASH_REMATCH[0]}" )
+	                if [ $res -eq 1 ]; then
+				echo '{"type":"url","category":"Payload delivery","to_ids":"1","distribution":"5","value":"'${BASH_REMATCH[0]}'"}'
+	                fi
+	        fi
+	done <<< "$text"
+}
+
 # Fetching the file
 filename="$1"
 if [ $# -ne 1 ]; then
 	echo "ERROR: Bad usage"
-	echo "$0 [email_file]"
+	echo "        $0 [email_file]"
 	exit
 elif [ ! -f "$1" ];then
 	echo "ERROR: File does not exist"
@@ -249,24 +308,34 @@ fi
 # Cleaning the file so we can parse it better
 # Patched the sed regex using http://www.grymoire.com/Unix/Sed.html
 WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/\n / /g;t t')
+WHOLE_FILE="${WHOLE_FILE}\n"
 
 # Extract the Headers
 EH=$(extractHeaders "$WHOLE_FILE")
 
-# Extract the Body
-boundary=$(getBoundary "$WHOLE_FILE")
-EB=$(extractBody "$WHOLE_FILE" "$boundary")
-
-ATTACH=$(separateByBoundary "$EB" "$boundary")
-ATTACHMENTS='{"request":{"files": ['$ATTACH'], "distribution": 5}}'
-
 BASE_DATA='{"Event":{"date":"'$(date +%F)'","threat_level_id":"1","info":"[Phishing Email] '$(getEmailSubject)'","analysis":"0","distribution":"1"}}'
-
 ATTR=$(generateJSONAttr "$EH")
 ATTR_HEADERS=$(sortReceivedFromHeader "$EH")
-ATTR_OTHER=',{"type":"comment","category":"Other","to_ids":"0","distribution":"5","value":"Event created automatically by custom email2misp script"}'
 
-ATTR=$(echo "[${ATTR}${ATTR_HEADERS}${ATTR_OTHER}]" | jq -c ".|unique")
+# Extract the Body
+boundary=$(getBoundary "$WHOLE_FILE")
+
+if [ -n "$boundary" ]; then
+	EB=$(extractBody "$WHOLE_FILE" "$boundary")
+
+	ATTACH=$(separateByBoundary "$EB" "$boundary")
+	ATTR_URL=""
+	# Workaround to get the URLs from the URL parser
+	if [ $(echo -e "$ATTACH" | wc -l) -eq 2 ];then
+		ATTR_URL=","$(echo -e "$ATTACH" | head -n 1)
+		ATTACH=$(echo -e "${ATTACH}" | tail -n 1)
+	fi
+
+	ATTACHMENTS='{"request":{"files": ['$ATTACH'], "distribution": 5}}'
+fi
+
+ATTR_OTHER=',{"type":"comment","category":"Other","to_ids":"0","distribution":"5","value":"Event created automatically by custom email2misp script"}'
+ATTR=$(echo "[${ATTR}${ATTR_HEADERS}${ATTR_URL}${ATTR_OTHER}]" | jq -c ".|unique")
 
 # Remove this when ready
 echo "Checking the obtained data..."
@@ -285,13 +354,14 @@ if [[ "$event_id" != "null" ]];then
 	echo "Event ID: $event_id has been creted succesfully"
 	CURL=$(curl -s -k "${BASE_URL}attributes/add/$event_id" -H "$AUTHORIZATION_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" --data "$ATTR" -XPOST)
 
-	# Workaround because files can be too big
-	tempfile=$(mktemp)
-	echo -e "$ATTACHMENTS" > "$tempfile"
-	CURL=$(curl -s -k "${BASE_URL}events/upload_sample/$event_id" -H "$AUTHORIZATION_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" --data "@$tempfile" -XPOST)
-	rm -f $tempfile
+	if [ -n "$ATTACHMENTS" ]; then
+		# Workaround because files can be too big
+		tempfile=$(mktemp)
+		echo -e "$ATTACHMENTS" > "$tempfile"
+		CURL=$(curl -s -k "${BASE_URL}events/upload_sample/$event_id" -H "$AUTHORIZATION_HEADER" -H "Accept: application/json" -H "Content-Type: application/json" --data "@$tempfile" -XPOST)
+		rm -f $tempfile
+	fi
 else
 	echo "Event ID: Not found"
 	echo "$CURL"
 fi
-
