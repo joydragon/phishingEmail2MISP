@@ -39,7 +39,7 @@ RE_EMAIL_PARSE="([^<]+)\s<([^>]+)"
 
 function extractHeaders {
 	local text="$1"
-	local res=$(echo -e "$text" | grep -B10000 -m1 -e "^\s*$" | tr -s '\t' '\040'|sed -e ':a;N;$!ba;s/\n / /g' | sed -re "s/\x0d//g")
+	local res=$(echo -e "$text" | grep -B10000 -m1 -e "^\s*$")
 
 	echo -e "$res"
 }
@@ -248,7 +248,7 @@ fi
 
 # Cleaning the file so we can parse it better
 # Patched the sed regex using http://www.grymoire.com/Unix/Sed.html
-WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e '/^$/ba;$ba;N;:a;s/\n / /g;')
+WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/\n / /g;t t')
 
 # Extract the Headers
 EH=$(extractHeaders "$WHOLE_FILE")
