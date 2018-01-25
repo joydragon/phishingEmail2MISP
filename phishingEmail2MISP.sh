@@ -34,7 +34,7 @@ RE1='Received:\s+by\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(\s+with\s+
 # 3) SMTP sender server IP
 # 4) Other SMTP stuff, depends on the SMTP server
 # 5) SMTP processing date
-RE2='Received:\s+from\s+([^(]+)\s+\(([^0-9)[ \t][^\s)[]+)?\s*\[?([^])[]+)\]?\)([^;]+)?;\s+([^()][^()]+[^()])\s*(\([^()]+\))?'
+RE2='Received:\s+from\s+([^(]+)\s+\(([^0-9)[ ][^ )[]+)?\s*\[?([^])[]+)\]?\)([^;]+)?;\s+([^()][^()]+[^()])\s*(\([^()]+\))?'
 
 # Regular Expressin for the "To", "CC" and similar email Headers
 RE_EMAIL_PARSE="([^<]+)\s<([^>]+)"
@@ -180,7 +180,11 @@ function extractBody {
                 local BODY=$(echo -e "$text" | sed -ne '/--'${boundary}'/,$p')
                 echo -e "$BODY"
         else
-                echo "Error, no se encontro el boundary"
+		local BODY=$(echo -e "$text" | sed -e "0,/^\s*$/d")
+		local ct=$(echo -e "$text" | grep -m1 -ie "^content-type")
+                echo "$ct"
+		echo ""
+		echo -e "$BODY"
         fi
 }
 
@@ -194,7 +198,11 @@ function separateByBoundary {
 
         while [ -n "$text" ]
         do
-                part=$(echo -e "$text" | sed -ne '0,/'${boundary}'/p' | grep -v -e "${boundary}")
+		if [ -n "$boundary" ]; then
+	                part=$(echo -e "$text" | sed -ne '0,/'${boundary}'/p' | grep -v -e "${boundary}")
+		else
+			part=$(echo -e "$text")
+		fi
 
                 head=$(echo -e "$part" | grep -B1000 -m1 -e "^\s*$" | sed -e '/^\s*$/d')
                 body=$(echo -e "$part" | sed -e '1,/^\s*$/d')
@@ -226,14 +234,18 @@ function separateByBoundary {
 				fi
 				res="${res}"'{"filename": "'$filename'", "data": "'$b64'"}'
 
-				# Now that we have it, should we save it i na folder also?
+				# Now that we have it, should we save it in a folder also?
 				if [ $SAVE_ATTACHMENTS -eq 1 ];then
 					saveAttachment "$filename" "$b64"
 				fi
                         fi
                 fi
 
-                text=$(echo -e "$text" | sed -e '0,/'${boundary}'/d')
+		if [ -n "$boundary" ]; then
+	                text=$(echo -e "$text" | sed -e '0,/'${boundary}'/d')
+		else
+			text=""
+		fi
         done
 
 	if [ -n "$strings" ];then
@@ -288,10 +300,11 @@ function checkURLOnFile {
 	        if [[ "$line" =~ $RE_URL ]]; then
 	                res=$( checkWhitelist "${BASH_REMATCH[0]}" )
 	                if [ $res -eq 1 ]; then
-				echo '{"type":"url","category":"Payload delivery","to_ids":"1","distribution":"5","value":"'${BASH_REMATCH[0]}'"}'
+				urls=$urls$(echo '{"type":"url","category":"Payload delivery","to_ids":"1","distribution":"5","value":"'${BASH_REMATCH[0]}'"}')
 	                fi
 	        fi
 	done <<< "$text"
+	echo "$urls" | sed -e "s/}{/},{/g"
 }
 
 # Fetching the file
@@ -320,7 +333,7 @@ ATTR_HEADERS=$(sortReceivedFromHeader "$EH")
 # Extract the Body
 boundary=$(getBoundary "$WHOLE_FILE")
 
-if [ -n "$boundary" ]; then
+#if [ -n "$boundary" ]; then
 	EB=$(extractBody "$WHOLE_FILE" "$boundary")
 
 	ATTACH=$(separateByBoundary "$EB" "$boundary")
@@ -332,7 +345,7 @@ if [ -n "$boundary" ]; then
 	fi
 
 	ATTACHMENTS='{"request":{"files": ['$ATTACH'], "distribution": 5}}'
-fi
+#fi
 
 ATTR_OTHER=',{"type":"comment","category":"Other","to_ids":"0","distribution":"5","value":"Event created automatically by custom email2misp script"}'
 ATTR=$(echo "[${ATTR}${ATTR_HEADERS}${ATTR_URL}${ATTR_OTHER}]" | jq -c ".|unique")
