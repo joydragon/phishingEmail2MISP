@@ -207,14 +207,14 @@ function separateByBoundary {
                 head=$(echo -e "$part" | grep -B1000 -m1 -e "^\s*$" | sed -e '/^\s*$/d')
                 body=$(echo -e "$part" | sed -e '1,/^\s*$/d')
                 if [ -n "$head" ];then
-                        local ct=$(echo -e "$head" | grep -e "Content-Type:")
+                        local ct=$(echo -e "$head" | grep -ie "Content-Type:")
                         if [[ "$ct" =~ "Content-Type: multipart" ]];then
                                 local new_boundary=$(getBoundary "$head")
 				res="${res}"$(separateByBoundary "$body" "$new_boundary")
                         else
                                 local filename=$(echo -e "$head" | grep "Content-Disposition" | sed -re 's/^.*filename="?([^"]+)"?$/\1/' )
                                 if [[ -z "$filename" ]];then
-                                        filename=$(echo -e "$ct" | sed -re 's/Content-Type:\s*([^;]+);.*$/\1/' -e 's/\//_/g')".raw"
+                                        filename=$(echo -e "$ct" | sed -re 's/Content-Type:\s*([^;]+);?.*$/\1/I' -e 's/\//_/g')".raw"
                                 fi
 
 				if [ -n "$(echo -e "$head" | grep -e 'Content-Transfer-Encoding: base64')" ];then
