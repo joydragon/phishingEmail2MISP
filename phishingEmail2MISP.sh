@@ -34,7 +34,7 @@ RE1='Received:\s+by\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(\s+with\s+
 # 3) SMTP sender server IP
 # 4) Other SMTP stuff, depends on the SMTP server
 # 5) SMTP processing date
-RE2='Received:\s+from\s+([^(]+)\s+\(([^0-9)[ ][^ )[]+)?\s*\[?([^])[]+)\]?\)([^;]+)?;\s+([^()][^()]+[^()])\s*(\([^()]+\))?'
+RE2='Received:\s+from\s+([^(]+)\s+\(([^0-9)[ ][^ )[]+)?\s*\[?([^]_)[]+)\]?\)([^;]+)?;\s+([^()][^()]+[^()])\s*(\([^()]+\))?'
 
 # Regular Expressin for the "To", "CC" and similar email Headers
 RE_EMAIL_PARSE="([^<]+)\s<([^>]+)"
@@ -181,10 +181,12 @@ function extractBody {
                 echo -e "$BODY"
         else
 		local BODY=$(echo -e "$text" | sed -e "0,/^\s*$/d")
-		local ct=$(echo -e "$text" | grep -m1 -ie "^content-type")
-                echo "$ct"
-		echo ""
-		echo -e "$BODY"
+		if [ -n "$BODY" ];then
+			local ct=$(echo -e "$text" | grep -m1 -ie "^content-type")
+                	echo "$ct"
+			echo ""
+			echo -e "$BODY"
+		fi
         fi
 }
 
@@ -333,8 +335,8 @@ ATTR_HEADERS=$(sortReceivedFromHeader "$EH")
 # Extract the Body
 boundary=$(getBoundary "$WHOLE_FILE")
 
-#if [ -n "$boundary" ]; then
-	EB=$(extractBody "$WHOLE_FILE" "$boundary")
+EB=$(extractBody "$WHOLE_FILE" "$boundary")
+if [ -n "$EB" ]; then
 
 	ATTACH=$(separateByBoundary "$EB" "$boundary")
 	ATTR_URL=""
@@ -345,7 +347,7 @@ boundary=$(getBoundary "$WHOLE_FILE")
 	fi
 
 	ATTACHMENTS='{"request":{"files": ['$ATTACH'], "distribution": 5}}'
-#fi
+fi
 
 ATTR_OTHER=',{"type":"comment","category":"Other","to_ids":"0","distribution":"5","value":"Event created automatically by custom email2misp script"}'
 ATTR=$(echo "[${ATTR}${ATTR_HEADERS}${ATTR_URL}${ATTR_OTHER}]" | jq -c ".|unique")
