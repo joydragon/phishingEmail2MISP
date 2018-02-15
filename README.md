@@ -14,12 +14,12 @@ Needs __pup__ (https://github.com/EricChiang/pup/releases/) as a HTML parser.
 
 The script is meant to fail at first because it's missing some configuration.
 
-* **Line 7**: Flag to set if the attachments will be save to the file system
-* **Line 8**: Folder to save the attachments to (defaults to current folder)
-* **Line 347**: URL or IP for the target MISP instance
-* **Line 348**: Authorization Key for the MISP account (https://www.circl.lu/doc/misp/automation/#automation-key)
+* **Line 8**: Flag to set if the attachments will be save to the file system
+* **Line 9**: Folder to save the attachments to (defaults to current folder)
+* **Line 362**: URL or IP for the target MISP instance
+* **Line 363**: Authorization Key for the MISP account (https://www.circl.lu/doc/misp/automation/#automation-key)
 
-After this setup, you can delete **Lines 340-344**, then run the actual script.
+After this setup, you can delete **Lines 356-360**, then run the actual script.
 
 
 ## Usage
@@ -35,5 +35,4 @@ $ phishingEmail2MISP.sh [email_file]
 
 Still there are some features that I want to implement like:
 
-* Checking for malicious URL within the body of the email
 * Connect to well-known online scanners like VirusTotal (https://virustotal.com/) or Hybrid-Analysis (https://www.hybrid-analysis.com/)
