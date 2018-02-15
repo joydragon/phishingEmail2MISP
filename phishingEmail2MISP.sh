@@ -292,7 +292,7 @@ function checkURLOnFile {
 	if [ $TYPE -eq 0 ]; then
 	        text=$(echo -e "$FILE")
 	elif [ $TYPE -eq 1 ]; then
-	        text=$(echo -e "$FILE" | pup)
+	        text=$(echo -e "$FILE" | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/=\n//g;t t' -e 's/=3D/=/g' | pup)
 	elif [ $TYPE -eq 2 ]; then
 	        text=$(echo -e "$FILE" | strings)
 	fi
