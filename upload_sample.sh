@@ -24,12 +24,14 @@ if [ ! -f "$FILE" ]; then
         usage
 fi
 
+FILENAME=$(basename "$FILE")
+
 DATA=$(base64 -w0 "$FILE")
 
 BASE_URL="https://misp.example.com/"
 AUTHORIZATION_HEADER="Authorization: [auth key]"
 
-ATTACHMENTS='{"request":{"files": [{"filename": "'$1'", "data": "'$DATA'"}]}}'
+ATTACHMENTS='{"request":{"files": [{"filename": "'$FILENAME'", "data": "'$DATA'"}]}}'
 
 echo -e "$ATTACHMENTS"
 exit
