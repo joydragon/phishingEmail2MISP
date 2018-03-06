@@ -322,13 +322,13 @@ fi
 
 # Cleaning the file so we can parse it better
 # Patched the sed regex using http://www.grymoire.com/Unix/Sed.html
-WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/\n / /g;t t')
+WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/\n / /g;t t'  | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/=\n//g;t t')
 WHOLE_FILE="${WHOLE_FILE}\n"
 
 # Extract the Headers
 EH=$(extractHeaders "$WHOLE_FILE")
 
-BASE_DATA='{"Event":{"date":"'$(date +%F)'","threat_level_id":"1","info":"[Phishing Email] '$(getEmailSubject)'","analysis":"0","distribution":"1"}}'
+BASE_DATA='{"Event":{"date":"'$(date +%F)'","threat_level_id":"1","info":"[Phishing Email] - '$(getEmailSubject)'","analysis":"0","distribution":"1"}}'
 ATTR=$(generateJSONAttr "$EH")
 ATTR_HEADERS=$(sortReceivedFromHeader "$EH")
 
