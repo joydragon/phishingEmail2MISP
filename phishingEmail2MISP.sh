@@ -214,15 +214,15 @@ function separateByBoundary {
                                 local new_boundary=$(getBoundary "$head")
 				res="${res}"$(separateByBoundary "$body" "$new_boundary")
                         else
-                                local filename=$(echo -e "$head" | grep "Content-Disposition" | sed -re 's/^.*filename="?([^"]+)"?$/\1/' )
+                                local filename=$(echo -e "$head" | grep "Content-Disposition" | grep "filename" | sed -re 's/^.*filename="?([^"]+)"?$/\1/' )
                                 if [[ -z "$filename" ]];then
                                         filename=$(echo -e "$ct" | sed -re 's/Content-Type:\s*([^;]+);?.*$/\1/I' -e 's/\//_/g')".raw"
                                 fi
 
 				if [ -n "$(echo -e "$head" | grep -e 'Content-Transfer-Encoding: base64')" ];then
-                                	b64=$(echo -e "$body" | paste -sd "")
+                                	b64=$(echo -e "$body" | paste -sd "" | sed -re "s/\x0d//g")
 					text=$(echo -e "$b64" | base64 -d -)
-					strings=$(checkURLOnFile "$text" 2)
+					strings=${strings}$(checkURLOnFile "$text" 2)
 				else
 					if [[ "$ct" =~ "Content-Type: text/plain" ]];then
 						strings=${strings}$(checkURLOnFile "$body" 0)
@@ -322,7 +322,7 @@ fi
 
 # Cleaning the file so we can parse it better
 # Patched the sed regex using http://www.grymoire.com/Unix/Sed.html
-WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/\n / /g;t t'  | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/=\n//g;t t')
+WHOLE_FILE=$(cat "$filename" | tr -s '\t' '\040' | sed -re 's/\x0d//g' | sed -e ':t;/\n\n/ba;$ba;N;b t;:a;s/\n / /g;t t')
 WHOLE_FILE="${WHOLE_FILE}\n"
 
 # Extract the Headers
